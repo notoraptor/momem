@@ -39,7 +39,7 @@ Mais cet avantage a un revers : **est-ce que ça ne serait pas mieux de simpleme
 
 ## Préoccupations sur le design
 
-1. **Duplication de code** : chaque projet a sa propre copie. Si on a 10 projets, on a 10 copies. Les modifications locales accidentelles créent de la divergence silencieuse.
+1. **Duplication de code** — ATTÉNUÉ : la duplication est en fait un avantage : chaque projet est auto-suffisant et peut être distribué (GitHub, collègue, déploiement, travail hors ligne) sans dépendance externe. Parmi les alternatives, seuls git subtree et le vendoring offrent cette garantie. `pip install -e` dépend d'un chemin local, `pip install git+url` dépend de l'accessibilité du repo, git submodules nécessitent le repo source. Le risque de divergence silencieuse des copies locales est atténué par `momem update` et la détection de conflits (`--force` requis pour écraser).
 
 2. **Le namespace `momem`** — RÉSOLU : le package interne de l'outil CLI a été renommé en `momemcli`. La commande et le nom PyPI restent `momem`, mais il n'y a plus de conflit avec le dossier `momem/` des snippets dans les projets. De plus, les imports entre snippets utilisent des imports relatifs (réécrits automatiquement au `memorize`), ce qui les rend indépendants du namespace.
 
