@@ -4,12 +4,12 @@ J'ai souvent des petits scripts, fonctions ou classes génériques que je souhai
 Mais je ne sais jamais comment gérer ces codes à travers tous les projets.
 
 Option PYPI: ces codes ne forment pas un ensemble cohérent justifiant de créer un paquet PYPI.
-En outre, ils peuvent changer regulièrement, ce qui serait pénible à gérer s'il faut chaque fois créer le package,
+En outre, ils peuvent changer régulièrement, ce qui serait pénible à gérer s'il faut chaque fois créer le package,
 l'uploader, puis le réinstaller dans les projets qui s'en servent.
 
 Option projet Github "utils" local importé dans les autres projets: si un des projets utilisant ces codes doit devenir public,
 il faudra y copier manuellement le code partagé, et se souvenir de le recopier lorsqu'il change dans le projet "utils" de base.
-Ća peut être pénible, à la longue.
+Ça peut être pénible, à la longue.
 
 # Proposition de solution: outil `momem`
 
@@ -28,7 +28,7 @@ il faudra y copier manuellement le code partagé, et se souvenir de le recopier 
   - contrairement au projet github "utils" local, la mise à jour des bouts de code est automatique via `momem update`: 
     pas besoin de les recopier manuellement.
 
-# Mise en oeuvre
+# Mise en œuvre
 
 ## Base de code
 
@@ -48,7 +48,7 @@ La base de code sera alors gérée dans `my_github_dir / "momem"`
 
 Dans un projet local `PROJECT_DIR`, l'outil installera les bouts de code dans `PROJECT_DIR/PROJECT_DIR/momem`.
 
-Ća devrait permettre de gérer la plupart des projets Python github, dont le nom du dossier est aussi le nom ud package principal.
+Ça devrait permettre de gérer la plupart des projets Python github, dont le nom du dossier est aussi le nom du package principal.
 
 On peut configurer localement le dossier d'installation des bouts de code:
 

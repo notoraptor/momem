@@ -8,36 +8,38 @@
 
 ## Points à clarifier ou améliorer
 
-### 1. Gestion des chemins absolus — risque de confusion
-Ligne 75 : `momem memorize /absolute/chemin/vers/script.py` => `~/.momem/absolute/chemin/vers/script.py`
+### 1. Gestion des chemins absolus — RÉSOLU
+Si le chemin vers le bout de code est absolu, `momem memorize` exige le second argument (chemin relatif dans la base de code momem). Cela évite de reproduire des arborescences absolues dans la base de code.
 
-Reproduire un chemin absolu dans la base de code crée une arborescence profonde et peu lisible. Est-ce vraiment souhaitable ? Une alternative serait de ne garder que le nom du fichier (ou un chemin relatif au CWD) par défaut, et d'utiliser le 2e argument pour les cas spéciaux.
+### 2. Convention `PROJECT_DIR/PROJECT_DIR/momem` — RÉSOLU
+Ajout d'une config globale `default_project_dir` :
+- `None` (défaut) : utilise le nom du dossier du projet → `PROJECT_DIR/PROJECT_DIR/momem`
+- Un nom précis (ex. `"src"`) : → `PROJECT_DIR/src/momem`
 
-### 2. Convention `PROJECT_DIR/PROJECT_DIR/momem` — fragile
-Ligne 49-51 : L'hypothèse que le dossier du projet porte le même nom que le package principal est courante mais pas universelle (ex. : projets avec des tirets dans le nom du dossier mais des underscores dans le package, monorepos, projets avec `src/` layout). Ça mériterait d'être documenté plus explicitement comme une convention par défaut, avec un encouragement à configurer via `--local --set momemdir`.
+La config locale `momemdir` reste prioritaire pour les cas particuliers.
 
-### 3. `momem show` — incomplet
-Seul `momem show --memory` est mentionné. Il serait logique d'avoir aussi `momem show` (ou `momem show --local`) pour afficher les snippets installés dans le projet courant. C'est peut-être prévu mais non documenté.
+Hiérarchie de résolution : **config locale `momemdir` > config globale `default_project_dir` > convention par défaut (nom du projet)**.
 
-### 4. Pas de gestion des conflits / versions
-Que se passe-t-il si :
-- On fait `momem update` mais le fichier local a été modifié manuellement ? Écrasement silencieux ? Avertissement ?
-- On `memorize` un fichier qui existe déjà dans la base ? Remplacement automatique ?
+La documentation devra expliquer cette convention et comment la configurer.
 
-Ce sont des cas d'usage fréquents qui mériteraient d'être spécifiés.
+### 3. `momem show` — RÉSOLU
+Ajouter `momem show` (ou `momem show --local`) pour afficher les snippets installés dans le projet courant, en complément de `momem show --memory` qui affiche la base de code globale.
 
-### 5. Pas de notion de dépendances entre snippets
-Si `script_a.py` importe `script_b.py`, `momem install script_a.py` devrait-il aussi installer `script_b.py` ? Si non, ça peut créer des `ImportError` silencieux. Au minimum, ça mérite une mention.
+### 4. Gestion des conflits — RÉSOLU
+En cas de conflit (fichier déjà existant lors d'un `memorize`, ou fichier local modifié lors d'un `update`), momem signale l'erreur et refuse l'opération. Passer `--force` pour écraser.
 
-### 6. Portée limitée à Python ?
-Le README parle de "fichier Python" mais le mécanisme de copie de fichiers est fondamentalement agnostique du langage. Est-ce intentionnellement limité à Python, ou est-ce que ça pourrait gérer n'importe quel fichier ? Si c'est Python-only, pourquoi ?
+### 5. Dépendances entre snippets — RÉSOLU
+Les dépendances sont calculées à la volée via `ast.parse` (détection des imports `momem.*`), pas de fichier de métadonnées séparé.
 
-### 7. Petites coquilles
-- Ligne 12, 51 : "Ća" → "Ça"
-- Ligne 51 : "le nom ud package" → "le nom du package"
-- Ligne 7 : "regulièrement" → "régulièrement"
-- Ligne 31 : "Mise en oeuvre" → "Mise en œuvre"
+- À l'`install` : parse le script, détecte les imports `momem.*`, résout et installe les dépendances récursivement (avec détection de cycles).
+- À l'`update` : re-parse et met à jour l'arbre de dépendances.
+- Au `memorize` : validation que les dépendances `momem.*` référencées existent dans la base de code, avertissement sinon.
 
-## Suggestion globale
+### 6. Portée limitée à Python — RÉSOLU
+L'outil est Python-centric, ce qui est cohérent avec la gestion des dépendances via `ast.parse` (point 5).
 
-Le README ressemble plus à une **note de conception / spec** qu'à un vrai README. Pour un projet public, il faudrait éventuellement le restructurer avec : une description concise en haut, un exemple d'utilisation rapide, puis les détails. Mais si c'est un outil personnel et que ce document sert de spec de développement, c'est très bien en l'état.
+### 7. Petites coquilles — RÉSOLU
+Corrigées dans le README.
+
+## Suggestion globale — RÉSOLU
+Le README a été renommé en `DESIGN.md` car il s'agit d'un cahier des charges / spec de conception. Un vrai README sera créé quand l'outil sera fonctionnel.
