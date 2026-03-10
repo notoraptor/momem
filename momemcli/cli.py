@@ -3,7 +3,7 @@
 import click
 import yaml
 
-from momem import codebase, config, project
+from momemcli import codebase, config, project
 
 
 @click.group()

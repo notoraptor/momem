@@ -3,8 +3,8 @@
 import shutil
 from pathlib import Path
 
-from momem.config import get_codebase_dir, resolve_install_dir
-from momem.deps import resolve_dependencies
+from momemcli.config import get_codebase_dir, resolve_install_dir
+from momemcli.deps import resolve_dependencies
 
 
 def _ensure_init_files(install_dir: Path, rel_path: str) -> None:

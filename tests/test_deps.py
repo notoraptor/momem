@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from momem.deps import (
+from momemcli.deps import (
     find_dependents,
     find_momem_imports,
     resolve_dependencies,

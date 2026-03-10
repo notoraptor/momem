@@ -2,8 +2,8 @@
 
 import pytest
 
-from momem import codebase
-from momem.config import get_codebase_dir
+from momemcli import codebase
+from momemcli.config import get_codebase_dir
 
 
 class TestMemorize:

@@ -2,8 +2,8 @@
 
 import pytest
 
-from momem import codebase, project
-from momem.config import get_codebase_dir, resolve_install_dir
+from momemcli import codebase, project
+from momemcli.config import get_codebase_dir, resolve_install_dir
 
 
 class TestInstall:

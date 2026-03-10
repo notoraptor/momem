@@ -2,7 +2,7 @@
 
 import pytest
 
-from momem import config
+from momemcli import config
 
 
 @pytest.fixture

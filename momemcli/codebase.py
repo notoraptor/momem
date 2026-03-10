@@ -5,8 +5,8 @@ from pathlib import Path
 
 import click
 
-from momem.config import ensure_tool_dir, get_codebase_dir
-from momem.deps import find_dependents, rewrite_momem_imports, validate_dependencies
+from momemcli.config import ensure_tool_dir, get_codebase_dir
+from momemcli.deps import find_dependents, rewrite_momem_imports, validate_dependencies
 
 
 def memorize(source: str, dest: str | None = None, *, force: bool = False) -> Path:

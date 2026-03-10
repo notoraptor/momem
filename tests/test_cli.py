@@ -6,13 +6,13 @@ import sys
 import pytest
 from click.testing import CliRunner
 
-from momem.cli import main
+from momemcli.cli import main
 
 
 class TestMainModule:
     def test_python_m_momem(self):
         result = subprocess.run(
-            [sys.executable, "-m", "momem", "--help"], capture_output=True, text=True
+            [sys.executable, "-m", "momemcli", "--help"], capture_output=True, text=True
         )
         assert result.returncode == 0
         assert "Usage" in result.stdout
@@ -140,7 +140,7 @@ class TestCLIUpdate:
 
     def test_update_shows_all_categories(self, cli_env, sample_script):
         runner, _ = cli_env
-        from momem.config import get_codebase_dir
+        from momemcli.config import get_codebase_dir
 
         runner.invoke(main, ["memorize", str(sample_script), "up.py"])
         runner.invoke(main, ["install", "up.py"])
@@ -157,7 +157,7 @@ class TestCLIUpdate:
 
     def test_update_conflict_output(self, cli_env, sample_script):
         runner, _ = cli_env
-        from momem.config import get_codebase_dir
+        from momemcli.config import get_codebase_dir
 
         runner.invoke(main, ["memorize", str(sample_script), "c.py"])
         runner.invoke(main, ["install", "c.py"])
@@ -168,7 +168,7 @@ class TestCLIUpdate:
 
     def test_update_obsolete_output(self, cli_env, sample_script):
         runner, _ = cli_env
-        from momem.config import get_codebase_dir
+        from momemcli.config import get_codebase_dir
 
         runner.invoke(main, ["memorize", str(sample_script), "obs.py"])
         runner.invoke(main, ["install", "obs.py"])

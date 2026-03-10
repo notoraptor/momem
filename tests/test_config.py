@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from momem import config
+from momemcli import config
 
 
 class TestEnsureToolDir:
