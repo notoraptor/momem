@@ -41,7 +41,7 @@ Mais cet avantage a un revers : **est-ce que ça ne serait pas mieux de simpleme
 
 1. **Duplication de code** : chaque projet a sa propre copie. Si on a 10 projets, on a 10 copies. Les modifications locales accidentelles créent de la divergence silencieuse.
 
-2. **Le namespace `momem`** : les snippets sont importés via `from momem.xxx import ...`. Ça veut dire que si momem lui-même est installé comme package (via pip) dans le même environnement, il y a un conflit de namespace.
+2. **Le namespace `momem`** — RÉSOLU : le package interne de l'outil CLI a été renommé en `momemcli`. La commande et le nom PyPI restent `momem`, mais il n'y a plus de conflit avec le dossier `momem/` des snippets dans les projets. De plus, les imports entre snippets utilisent des imports relatifs (réécrits automatiquement au `memorize`), ce qui les rend indépendants du namespace.
 
 3. **Pas de versioning** : on ne peut pas dire "ce projet utilise la version X de tel snippet". `momem update` écrase avec la dernière version. Si un snippet change de manière incompatible, tous les projets cassent au prochain `update`.
 
