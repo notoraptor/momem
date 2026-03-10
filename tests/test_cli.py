@@ -191,6 +191,44 @@ class TestCLIUpdate:
         assert "no longer in codebase" in result.output
 
 
+class TestCLIDiff:
+    def test_diff_no_changes(self, cli_env, sample_script):
+        runner, _ = cli_env
+        runner.invoke(main, ["memorize", str(sample_script), "d.py"])
+        runner.invoke(main, ["install", "d.py"])
+        result = runner.invoke(main, ["diff"])
+        assert result.exit_code == 0
+        assert "No differences" in result.output
+
+    def test_diff_with_changes(self, cli_env, sample_script):
+        runner, _ = cli_env
+        from momemcli.config import resolve_install_dir
+
+        runner.invoke(main, ["memorize", str(sample_script), "d.py"])
+        runner.invoke(main, ["install", "d.py"])
+        (resolve_install_dir() / "d.py").write_text("changed\n")
+        result = runner.invoke(main, ["diff"])
+        assert result.exit_code == 0
+        assert "---" in result.output
+        assert "+++" in result.output
+
+    def test_diff_single_file(self, cli_env, sample_script):
+        runner, _ = cli_env
+        from momemcli.config import resolve_install_dir
+
+        runner.invoke(main, ["memorize", str(sample_script), "d.py"])
+        runner.invoke(main, ["install", "d.py"])
+        (resolve_install_dir() / "d.py").write_text("changed\n")
+        result = runner.invoke(main, ["diff", "d.py"])
+        assert result.exit_code == 0
+        assert "d.py" in result.output
+
+    def test_diff_no_install_dir(self, cli_env):
+        runner, _ = cli_env
+        result = runner.invoke(main, ["diff"])
+        assert result.exit_code != 0
+
+
 class TestCLIShow:
     def test_show_memory(self, cli_env, sample_script):
         runner, _ = cli_env

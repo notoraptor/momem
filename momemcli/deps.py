@@ -5,6 +5,20 @@ import re
 from pathlib import Path
 
 
+def resolve_dep_path(dep: str, codebase_dir: Path) -> str | None:
+    """Resolve a dependency path, checking both module.py and package/__init__.py.
+
+    Returns the resolved relative path, or None if neither exists.
+    """
+    if (codebase_dir / dep).exists():
+        return dep
+    if dep.endswith(".py"):
+        pkg_init = dep[:-3] + "/__init__.py"
+        if (codebase_dir / pkg_init).exists():
+            return pkg_init
+    return None
+
+
 def rewrite_momem_imports(source: str, file_rel_path: str) -> str:
     """Rewrite absolute momem.* imports to relative imports.
 
@@ -90,16 +104,19 @@ def resolve_dependencies(file_path: Path, codebase_dir: Path) -> list[str]:
             return
         visited.add(rel_path)
         full_path = codebase_dir / rel_path
-        if not full_path.exists():
-            return
-        for dep in find_momem_imports(full_path, rel_path):
-            _resolve(dep)
-        result.append(rel_path)
+        if full_path.exists():
+            for dep in find_momem_imports(full_path, rel_path):
+                resolved = resolve_dep_path(dep, codebase_dir)
+                if resolved:
+                    _resolve(resolved)
+            result.append(rel_path)
 
     source_rel = str(file_path)
     source_full = codebase_dir / source_rel
     for dep in find_momem_imports(source_full, source_rel):
-        _resolve(dep)
+        resolved = resolve_dep_path(dep, codebase_dir)
+        if resolved:
+            _resolve(resolved)
 
     return result
 
@@ -114,7 +131,7 @@ def validate_dependencies(
     deps = find_momem_imports(file_path, file_rel_path)
     missing = []
     for dep in sorted(deps):
-        if not (codebase_dir / dep).exists():
+        if resolve_dep_path(dep, codebase_dir) is None:
             missing.append(dep)
     return missing
 
@@ -129,6 +146,9 @@ def find_dependents(target_path: str, codebase_dir: Path) -> list[str]:
         if rel_path == target_path:
             continue
         imports = find_momem_imports(py_file, rel_path)
-        if target_path in imports:
+        resolved_imports = {
+            resolve_dep_path(dep, codebase_dir) or dep for dep in imports
+        }
+        if target_path in resolved_imports:
             dependents.append(rel_path)
     return sorted(dependents)

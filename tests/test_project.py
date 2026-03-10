@@ -50,6 +50,25 @@ class TestInstall:
         assert (install_dir / "sub" / "__init__.py").exists()
         assert (install_dir / "sub" / "deep" / "__init__.py").exists()
 
+    def test_install_with_package_dep(self, setup_env, tmp_path):
+        """Install a snippet that depends on a sub-package (__init__.py)."""
+        codebase_dir = get_codebase_dir()
+        # Create a package in the codebase
+        pkg = codebase_dir / "utils"
+        pkg.mkdir(parents=True)
+        (pkg / "__init__.py").write_text("def helper():\n    return 42\n")
+        # Create a script that imports from the package
+        script = tmp_path / "main.py"
+        script.write_text("from .utils import helper\n", encoding="utf-8")
+        codebase.memorize(str(script), "main.py")
+        installed = project.install("main.py")
+        assert "utils/__init__.py" in installed
+        assert "main.py" in installed
+        install_dir = resolve_install_dir()
+        # The __init__.py should have the real content, not empty
+        content = (install_dir / "utils" / "__init__.py").read_text()
+        assert "def helper" in content
+
 
 class TestUninstall:
     def test_uninstall_single(self, setup_env, sample_script):
@@ -187,6 +206,58 @@ class TestUpdate:
     def test_update_no_install_dir(self, setup_env):
         with pytest.raises(FileNotFoundError):
             project.update()
+
+
+class TestDiff:
+    def test_no_differences(self, setup_env, sample_script):
+        codebase.memorize(str(sample_script), "same.py")
+        project.install("same.py")
+        assert project.diff() == {}
+
+    def test_local_modified(self, setup_env, sample_script):
+        codebase.memorize(str(sample_script), "mod.py")
+        project.install("mod.py")
+        install_dir = resolve_install_dir()
+        (install_dir / "mod.py").write_text("x = 42\n")
+        diffs = project.diff()
+        assert "mod.py" in diffs
+        assert "codebase/mod.py" in diffs["mod.py"]
+        assert "local/mod.py" in diffs["mod.py"]
+
+    def test_codebase_modified(self, setup_env, sample_script):
+        codebase.memorize(str(sample_script), "cb.py")
+        project.install("cb.py")
+        (get_codebase_dir() / "cb.py").write_text("x = 99\n")
+        diffs = project.diff()
+        assert "cb.py" in diffs
+
+    def test_diff_single_file(self, setup_env, sample_script):
+        codebase.memorize(str(sample_script), "a.py")
+        codebase.memorize(str(sample_script), "b.py", force=True)
+        project.install("a.py")
+        project.install("b.py")
+        install_dir = resolve_install_dir()
+        (install_dir / "a.py").write_text("changed\n")
+        diffs = project.diff("a.py")
+        assert "a.py" in diffs
+        assert "b.py" not in diffs
+
+    def test_diff_file_removed_from_codebase(self, setup_env, sample_script):
+        codebase.memorize(str(sample_script), "gone.py")
+        project.install("gone.py")
+        (get_codebase_dir() / "gone.py").unlink()
+        diffs = project.diff()
+        assert "gone.py" in diffs
+
+    def test_diff_nonexistent_file(self, setup_env, sample_script):
+        codebase.memorize(str(sample_script), "x.py")
+        project.install("x.py")
+        with pytest.raises(FileNotFoundError):
+            project.diff("nope.py")
+
+    def test_diff_no_install_dir(self, setup_env):
+        with pytest.raises(FileNotFoundError):
+            project.diff()
 
 
 class TestShowLocal:

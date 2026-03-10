@@ -87,6 +87,22 @@ def update(force: bool) -> None:
 
 
 @main.command()
+@click.argument("path", required=False)
+def diff(path: str | None) -> None:
+    """Show differences between installed snippets and their codebase versions."""
+    try:
+        diffs = project.diff(path)
+    except FileNotFoundError as e:
+        raise click.ClickException(str(e))
+
+    if not diffs:
+        click.echo("No differences.")
+    else:
+        for rel_path, diff_text in diffs.items():
+            click.echo(diff_text, nl=False)
+
+
+@main.command()
 @click.option("--memory", is_flag=True, help="Show files in the codebase.")
 @click.option("--local", "local_", is_flag=True, help="Show files installed locally.")
 def show(memory: bool, local_: bool) -> None:

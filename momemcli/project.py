@@ -1,5 +1,6 @@
-"""Operations on the local project (install, uninstall, update, show)."""
+"""Operations on the local project (install, uninstall, update, show, diff)."""
 
+import difflib
 import shutil
 from pathlib import Path
 
@@ -224,6 +225,61 @@ def update(*, force: bool = False) -> dict[str, list[str]]:
             result["new_deps"].append(dep)
 
     return result
+
+
+def diff(path: str | None = None) -> dict[str, str]:
+    """Show unified diffs between installed snippets and their codebase versions.
+
+    Args:
+        path: Relative path to diff. If None, diff all installed files.
+
+    Returns:
+        A dict mapping relative paths to their unified diff strings.
+        Only files with differences are included.
+    """
+    install_dir = resolve_install_dir()
+    codebase_dir = get_codebase_dir()
+
+    if not install_dir.exists():
+        raise FileNotFoundError("No momem install directory found in this project.")
+
+    if path is not None:
+        local_file = install_dir / path
+        if not local_file.exists():
+            raise FileNotFoundError(f"File not installed locally: {path}")
+        files = [path]
+    else:
+        files = sorted(
+            str(p.relative_to(install_dir))
+            for p in install_dir.rglob("*.py")
+            if p.is_file() and p.name != "__init__.py"
+        )
+
+    diffs: dict[str, str] = {}
+    for rel_path in files:
+        local_file = install_dir / rel_path
+        codebase_file = codebase_dir / rel_path
+
+        local_lines = local_file.read_text(encoding="utf-8").splitlines(keepends=True)
+        if codebase_file.exists():
+            codebase_lines = codebase_file.read_text(encoding="utf-8").splitlines(
+                keepends=True
+            )
+        else:
+            codebase_lines = []
+
+        unified = list(
+            difflib.unified_diff(
+                codebase_lines,
+                local_lines,
+                fromfile=f"codebase/{rel_path}",
+                tofile=f"local/{rel_path}",
+            )
+        )
+        if unified:
+            diffs[rel_path] = "".join(unified)
+
+    return diffs
 
 
 def show_local() -> list[str]:

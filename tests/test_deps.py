@@ -5,10 +5,42 @@ from pathlib import Path
 from momemcli.deps import (
     find_dependents,
     find_momem_imports,
+    resolve_dep_path,
     resolve_dependencies,
     rewrite_momem_imports,
     validate_dependencies,
 )
+
+
+class TestResolveDepPath:
+    def test_module_file(self, tmp_path):
+        codebase = tmp_path / "codebase"
+        codebase.mkdir()
+        (codebase / "utils.py").write_text("x = 1\n")
+        assert resolve_dep_path("utils.py", codebase) == "utils.py"
+
+    def test_package_init(self, tmp_path):
+        codebase = tmp_path / "codebase"
+        codebase.mkdir()
+        pkg = codebase / "utils"
+        pkg.mkdir()
+        (pkg / "__init__.py").write_text("x = 1\n")
+        assert resolve_dep_path("utils.py", codebase) == "utils/__init__.py"
+
+    def test_module_preferred_over_package(self, tmp_path):
+        """When both utils.py and utils/__init__.py exist, module wins."""
+        codebase = tmp_path / "codebase"
+        codebase.mkdir()
+        (codebase / "utils.py").write_text("x = 1\n")
+        pkg = codebase / "utils"
+        pkg.mkdir()
+        (pkg / "__init__.py").write_text("y = 2\n")
+        assert resolve_dep_path("utils.py", codebase) == "utils.py"
+
+    def test_neither_exists(self, tmp_path):
+        codebase = tmp_path / "codebase"
+        codebase.mkdir()
+        assert resolve_dep_path("utils.py", codebase) is None
 
 
 class TestRewriteMomemImports:
@@ -153,6 +185,27 @@ class TestResolveDependencies:
         deps = resolve_dependencies(Path("main.py"), codebase)
         assert deps == ["helper.py"]
 
+    def test_package_dep(self, tmp_path):
+        """from .utils import x resolves to utils/__init__.py when it's a package."""
+        codebase = tmp_path / "codebase"
+        codebase.mkdir()
+        pkg = codebase / "utils"
+        pkg.mkdir()
+        (pkg / "__init__.py").write_text("x = 1\n")
+        (codebase / "main.py").write_text("from .utils import x\n")
+        deps = resolve_dependencies(Path("main.py"), codebase)
+        assert deps == ["utils/__init__.py"]
+
+    def test_transitive_dep_missing_in_chain(self, tmp_path):
+        """A resolved dep whose file was deleted is skipped in recursion."""
+        codebase = tmp_path / "codebase"
+        codebase.mkdir()
+        (codebase / "mid.py").write_text("from .gone import x\n")
+        (codebase / "top.py").write_text("from .mid import x\n")
+        # gone.py does not exist — mid depends on it but it's missing
+        deps = resolve_dependencies(Path("top.py"), codebase)
+        assert deps == ["mid.py"]
+
 
 class TestValidateDependencies:
     def test_all_present(self, tmp_path):
@@ -169,6 +222,16 @@ class TestValidateDependencies:
         script = tmp_path / "main.py"
         script.write_text("from .missing import x\n")
         assert validate_dependencies(script, codebase, "main.py") == ["missing.py"]
+
+    def test_package_present(self, tmp_path):
+        codebase = tmp_path / "codebase"
+        codebase.mkdir()
+        pkg = codebase / "utils"
+        pkg.mkdir()
+        (pkg / "__init__.py").write_text("x = 1\n")
+        script = tmp_path / "main.py"
+        script.write_text("from .utils import x\n")
+        assert validate_dependencies(script, codebase, "main.py") == []
 
 
 class TestFindDependents:
@@ -200,3 +263,13 @@ class TestFindDependents:
         (codebase / "helper.py").write_text("x = 1\n")
         (codebase / "__init__.py").write_text("from .helper import x\n")
         assert find_dependents("helper.py", codebase) == []
+
+    def test_package_dependents(self, tmp_path):
+        """find_dependents finds files that depend on a package __init__.py."""
+        codebase = tmp_path / "codebase"
+        codebase.mkdir()
+        pkg = codebase / "utils"
+        pkg.mkdir()
+        (pkg / "__init__.py").write_text("x = 1\n")
+        (codebase / "main.py").write_text("from .utils import x\n")
+        assert find_dependents("utils/__init__.py", codebase) == ["main.py"]

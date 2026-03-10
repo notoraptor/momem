@@ -16,7 +16,8 @@ def memorize(source: str, dest: str | None = None, *, force: bool = False) -> Pa
 
     Args:
         source: Path to the source file.
-        dest: Relative path within the codebase. Required if source is absolute.
+        dest: Relative path within the codebase. Required if source is outside
+            the current working directory.
         force: Overwrite if the target already exists.
 
     Returns:
@@ -34,13 +35,23 @@ def memorize(source: str, dest: str | None = None, *, force: bool = False) -> Pa
     if source_path.suffix != ".py":
         raise ValueError(f"Only Python files are supported: {source}")
 
-    if source_path.is_absolute() and dest is None:
-        raise ValueError(
-            "A relative destination path is required when the source path is absolute. "
-            "Usage: momem memorize /absolute/path/script.py relative/path.py"
-        )
-
-    rel_dest = dest if dest else str(source_path)
+    if dest is None:
+        try:
+            rel_dest = str(source_path.resolve().relative_to(Path.cwd()))
+        except ValueError:
+            raise ValueError(
+                "A destination path is required when the source is outside the "
+                "current directory. "
+                "Usage: momem memorize <source> <dest>"
+            )
+    else:
+        dest_path = Path(dest)
+        if dest_path.is_absolute() or ".." in dest_path.parts:
+            raise ValueError(
+                "Destination must be a purely relative path without '.' or '..'. "
+                f"Got: {dest}"
+            )
+        rel_dest = dest
     codebase_dir = get_codebase_dir()
     target = codebase_dir / rel_dest
 
@@ -50,6 +61,15 @@ def memorize(source: str, dest: str | None = None, *, force: bool = False) -> Pa
         )
 
     target.parent.mkdir(parents=True, exist_ok=True)
+
+    # Ensure __init__.py files in subdirectories within the codebase
+    parts = Path(rel_dest).parent.parts
+    current = codebase_dir
+    for part in parts:
+        current = current / part
+        init = current / "__init__.py"
+        if not init.exists():
+            init.touch()
 
     # Read source, rewrite momem imports to relative, then write
     content = source_path.read_text(encoding="utf-8")
@@ -94,10 +114,15 @@ def forget(path: str, *, force: bool = False) -> None:
 
     target.unlink()
 
-    # Clean up empty parent directories up to the codebase root
+    # Clean up parent directories that are empty or only contain __init__.py
     parent = target.parent
     while parent != codebase_dir:
-        if not any(parent.iterdir()):
+        remaining = list(parent.iterdir())
+        if not remaining:
+            parent.rmdir()
+            parent = parent.parent
+        elif remaining == [parent / "__init__.py"]:
+            (parent / "__init__.py").unlink()
             parent.rmdir()
             parent = parent.parent
         else:
@@ -112,5 +137,5 @@ def show_memory() -> list[str]:
     return sorted(
         str(p.relative_to(codebase_dir))
         for p in codebase_dir.rglob("*.py")
-        if p.is_file()
+        if p.is_file() and p.name != "__init__.py"
     )
