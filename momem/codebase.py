@@ -3,6 +3,8 @@
 import shutil
 from pathlib import Path
 
+import click
+
 from momem.config import ensure_tool_dir, get_codebase_dir
 from momem.deps import find_dependents, rewrite_momem_imports, validate_dependencies
 
@@ -59,8 +61,6 @@ def memorize(source: str, dest: str | None = None, *, force: bool = False) -> Pa
     # Warn about missing dependencies
     missing = validate_dependencies(target, codebase_dir, rel_dest)
     if missing:
-        import click
-
         for m in missing:
             click.echo(f"Warning: dependency not found in codebase: {m}", err=True)
 
@@ -89,8 +89,6 @@ def forget(path: str, *, force: bool = False) -> None:
         )
 
     if dependents:
-        import click
-
         for d in dependents:
             click.echo(f"Warning: {d} depends on {path}", err=True)
 
