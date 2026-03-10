@@ -124,7 +124,17 @@ def config_cmd() -> None:
 @click.option("--global", "is_global", is_flag=True, help="Set in global config.")
 @click.option("--local", "is_local", is_flag=True, help="Set in local config.")
 def config_set(key: str, value: str, is_global: bool, is_local: bool) -> None:
-    """Set a configuration value."""
+    """Set a configuration value.
+
+    \b
+    Global keys:
+      codebase           Direct path to the codebase directory (default: ~/.momem/momem).
+      default_project_dir  Default subdirectory name for snippet installation.
+
+    \b
+    Local keys:
+      momemdir           Path to the local snippet install directory.
+    """
     if is_global == is_local:
         raise click.ClickException("Specify exactly one of --global or --local.")
     try:

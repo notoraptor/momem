@@ -155,7 +155,7 @@ class TestCLIUpdate:
         assert result.exit_code == 0
         assert "Updated" in result.output or "New dependency" in result.output
 
-    def test_update_conflict_output(self, cli_env, sample_script):
+    def test_update_auto_when_only_codebase_changed(self, cli_env, sample_script):
         runner, _ = cli_env
         from momemcli.config import get_codebase_dir
 
@@ -163,6 +163,20 @@ class TestCLIUpdate:
         runner.invoke(main, ["install", "c.py"])
         cb = get_codebase_dir() / "c.py"
         cb.write_text("changed = True\n")
+        result = runner.invoke(main, ["update"])
+        assert result.exit_code == 0
+        assert "Updated" in result.output
+
+    def test_update_conflict_when_both_changed(self, cli_env, sample_script):
+        runner, _ = cli_env
+        from momemcli.config import get_codebase_dir, resolve_install_dir
+
+        runner.invoke(main, ["memorize", str(sample_script), "c.py"])
+        runner.invoke(main, ["install", "c.py"])
+        cb = get_codebase_dir() / "c.py"
+        cb.write_text("changed = True\n")
+        local = resolve_install_dir() / "c.py"
+        local.write_text("local edit = True\n")
         result = runner.invoke(main, ["update"])
         assert "Conflict" in result.output
 

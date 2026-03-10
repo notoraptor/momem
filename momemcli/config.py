@@ -1,5 +1,6 @@
 """Configuration management for momem (global and local)."""
 
+import hashlib
 from pathlib import Path
 
 import yaml
@@ -54,11 +55,15 @@ def save_local_config(config: dict) -> None:
 
 
 def get_codebase_dir() -> Path:
-    """Return the path to the codebase directory."""
+    """Return the path to the codebase directory.
+
+    If configured via 'codebase', uses that path directly.
+    Otherwise defaults to ~/.momem/momem.
+    """
     global_config = load_global_config()
     codebase = global_config.get("codebase")
     if codebase:
-        return Path(codebase).expanduser() / "momem"
+        return Path(codebase).expanduser()
     return DEFAULT_CODEBASE
 
 
@@ -104,6 +109,41 @@ def set_config(key: str, value: str, *, is_global: bool) -> None:
         config = load_local_config()
         config[key] = value
         save_local_config(config)
+
+
+def file_hash(path: Path) -> str:
+    """Return the SHA-256 hex digest of a file's content."""
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def get_installed_hashes() -> dict[str, str]:
+    """Return the installed file hashes from local config."""
+    return load_local_config().get("installed", {})
+
+
+def set_installed_hash(rel_path: str, digest: str) -> None:
+    """Record the hash of an installed file in local config."""
+    config = load_local_config()
+    installed = config.setdefault("installed", {})
+    installed[rel_path] = digest
+    save_local_config(config)
+
+
+def remove_installed_hash(rel_path: str) -> None:
+    """Remove the hash of an uninstalled file from local config."""
+    config = load_local_config()
+    installed = config.get("installed", {})
+    installed.pop(rel_path, None)
+    if not installed:
+        config.pop("installed", None)
+    save_local_config(config)
+
+
+def clear_installed_hashes() -> None:
+    """Remove all installed hashes from local config."""
+    config = load_local_config()
+    config.pop("installed", None)
+    save_local_config(config)
 
 
 def show_config() -> dict:

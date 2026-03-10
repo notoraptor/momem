@@ -3,7 +3,15 @@
 import shutil
 from pathlib import Path
 
-from momemcli.config import get_codebase_dir, resolve_install_dir
+from momemcli.config import (
+    clear_installed_hashes,
+    file_hash,
+    get_codebase_dir,
+    get_installed_hashes,
+    remove_installed_hash,
+    resolve_install_dir,
+    set_installed_hash,
+)
 from momemcli.deps import resolve_dependencies
 
 
@@ -79,6 +87,7 @@ def install(path: str, *, force: bool = False) -> list[str]:
         _ensure_init_files(install_dir, rel_path)
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dst)
+        set_installed_hash(rel_path, file_hash(src))
         installed.append(rel_path)
 
     return installed
@@ -109,6 +118,7 @@ def uninstall(path: str | None = None, *, all_: bool = False) -> list[str]:
 
         # Clean up the entire directory tree
         shutil.rmtree(install_dir)
+        clear_installed_hashes()
         return sorted(removed)
 
     if path is None:
@@ -120,12 +130,18 @@ def uninstall(path: str | None = None, *, all_: bool = False) -> list[str]:
 
     target.unlink()
     _clean_empty_dirs(target, install_dir)
+    remove_installed_hash(path)
 
     return [path]
 
 
 def update(*, force: bool = False) -> dict[str, list[str]]:
     """Update all locally installed snippets from the codebase.
+
+    Uses stored hashes to distinguish update directions:
+    - Local unchanged, codebase changed -> auto-update
+    - Local changed, codebase unchanged -> skip (local modification preserved)
+    - Both changed -> conflict (requires --force)
 
     Returns:
         A dict with keys 'updated', 'conflicts', 'new_deps', 'obsolete_deps'.
@@ -143,6 +159,8 @@ def update(*, force: bool = False) -> dict[str, list[str]]:
         "obsolete_deps": [],
     }
 
+    stored_hashes = get_installed_hashes()
+
     # Collect all installed snippet files (excluding __init__.py)
     installed_files = sorted(
         str(p.relative_to(install_dir))
@@ -158,15 +176,33 @@ def update(*, force: bool = False) -> dict[str, list[str]]:
             result["obsolete_deps"].append(rel_path)
             continue
 
-        src_content = src.read_text(encoding="utf-8")
-        dst_content = dst.read_text(encoding="utf-8")
+        src_hash = file_hash(src)
+        dst_hash = file_hash(dst)
 
-        if src_content != dst_content:
-            if force:
-                shutil.copy2(src, dst)
-                result["updated"].append(rel_path)
-            else:
-                result["conflicts"].append(rel_path)
+        if src_hash == dst_hash:
+            # Identical content — nothing to do
+            continue
+
+        original_hash = stored_hashes.get(rel_path)
+        local_changed = original_hash is not None and dst_hash != original_hash
+        codebase_changed = original_hash is not None and src_hash != original_hash
+
+        if not local_changed or original_hash is None:
+            # Local untouched (or no hash recorded) — safe to auto-update
+            shutil.copy2(src, dst)
+            set_installed_hash(rel_path, src_hash)
+            result["updated"].append(rel_path)
+        elif not codebase_changed:
+            # Only local was modified, codebase unchanged — skip
+            pass
+        elif force:
+            # Both changed, --force requested — overwrite
+            shutil.copy2(src, dst)
+            set_installed_hash(rel_path, src_hash)
+            result["updated"].append(rel_path)
+        else:
+            # Both changed — conflict
+            result["conflicts"].append(rel_path)
 
     # Check for new dependencies
     all_needed: set[str] = set()
@@ -184,6 +220,7 @@ def update(*, force: bool = False) -> dict[str, list[str]]:
             _ensure_init_files(install_dir, dep)
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dst)
+            set_installed_hash(dep, file_hash(src))
             result["new_deps"].append(dep)
 
     return result

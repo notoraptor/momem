@@ -40,9 +40,9 @@ Par défaut, la base de code est stockée dans `TOOLDIR / "momem"`
 
 On peut configurer l'outil pour que sa base de code soit dans un autre dossier, par exemple dans un vrai projet github:
 
-`momem config --global --set codebase my_github_dir`
+`momem config --global --set codebase my_github_dir/momem`
 
-La base de code sera alors gérée dans `my_github_dir / "momem"`
+La base de code sera alors gérée directement dans le dossier indiqué.
 
 ## Projets locaux
 

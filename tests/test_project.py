@@ -121,15 +121,49 @@ class TestUpdate:
         result = project.update(force=True)
         assert result["updated"] == ["upd.py"]
 
-    def test_update_conflict_without_force(self, setup_env, sample_script):
+    def test_update_auto_when_only_codebase_changed(self, setup_env, sample_script):
         codebase.memorize(str(sample_script), "upd.py")
         project.install("upd.py")
-        # Modify in codebase
+        # Modify only in codebase — should auto-update (no conflict)
         cb_file = get_codebase_dir() / "upd.py"
         cb_file.write_text("def hello():\n    return 'updated'\n")
         result = project.update()
+        assert result["updated"] == ["upd.py"]
+        assert result["conflicts"] == []
+
+    def test_update_skip_when_only_local_changed(self, setup_env, sample_script):
+        codebase.memorize(str(sample_script), "upd.py")
+        project.install("upd.py")
+        # Modify only the local copy — should be preserved
+        install_dir = resolve_install_dir()
+        (install_dir / "upd.py").write_text("def hello():\n    return 'local edit'\n")
+        result = project.update()
+        assert result["updated"] == []
+        assert result["conflicts"] == []
+
+    def test_update_conflict_when_both_changed(self, setup_env, sample_script):
+        codebase.memorize(str(sample_script), "upd.py")
+        project.install("upd.py")
+        # Modify both codebase and local copy
+        cb_file = get_codebase_dir() / "upd.py"
+        cb_file.write_text("def hello():\n    return 'codebase edit'\n")
+        install_dir = resolve_install_dir()
+        (install_dir / "upd.py").write_text("def hello():\n    return 'local edit'\n")
+        result = project.update()
         assert result["conflicts"] == ["upd.py"]
         assert result["updated"] == []
+
+    def test_update_force_resolves_conflict(self, setup_env, sample_script):
+        codebase.memorize(str(sample_script), "upd.py")
+        project.install("upd.py")
+        # Modify both
+        cb_file = get_codebase_dir() / "upd.py"
+        cb_file.write_text("def hello():\n    return 'codebase edit'\n")
+        install_dir = resolve_install_dir()
+        (install_dir / "upd.py").write_text("def hello():\n    return 'local edit'\n")
+        result = project.update(force=True)
+        assert result["updated"] == ["upd.py"]
+        assert result["conflicts"] == []
 
     def test_update_detects_new_deps(self, setup_env, sample_script):
         codebase.memorize(str(sample_script), "base.py")

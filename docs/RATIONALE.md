@@ -43,7 +43,7 @@ Mais cet avantage a un revers : **est-ce que ça ne serait pas mieux de simpleme
 
 2. **Le namespace `momem`** — RÉSOLU : le package interne de l'outil CLI a été renommé en `momemcli`. La commande et le nom PyPI restent `momem`, mais il n'y a plus de conflit avec le dossier `momem/` des snippets dans les projets. De plus, les imports entre snippets utilisent des imports relatifs (réécrits automatiquement au `memorize`), ce qui les rend indépendants du namespace.
 
-3. **Pas de versioning** : on ne peut pas dire "ce projet utilise la version X de tel snippet". `momem update` écrase avec la dernière version. Si un snippet change de manière incompatible, tous les projets cassent au prochain `update`.
+3. **Pas de versioning** — ATTÉNUÉ : `momem update` utilise une comparaison 3-way (hash stocké au moment de l'install) pour distinguer les mises à jour normales des vrais conflits. Les modifications locales sont préservées si la codebase n'a pas changé, et un conflit est signalé si les deux ont divergé.
 
 4. **Gestion des `__init__.py`** : momem doit créer/maintenir les `__init__.py` dans l'arborescence installée pour que les imports fonctionnent. C'est de la plomberie que pip gère nativement.
 

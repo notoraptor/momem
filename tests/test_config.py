@@ -58,7 +58,7 @@ class TestGetCodebaseDir:
 
     def test_custom(self, tmp_home):
         config.save_global_config({"codebase": "/custom/base"})
-        assert config.get_codebase_dir() == Path("/custom/base/momem")
+        assert config.get_codebase_dir() == Path("/custom/base")
 
 
 class TestResolveInstallDir:

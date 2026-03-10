@@ -31,7 +31,7 @@ momem = "momem.cli:main"
 - **Local** : `.momem.yaml` dans le répertoire courant
 
 ### Clés de configuration
-- `codebase` (global) : chemin vers la base de code. Défaut : `~/.momem/momem`
+- `codebase` (global) : chemin direct vers la base de code. Défaut : `~/.momem/momem`
 - `default_project_dir` (global) : nom du sous-dossier projet. Défaut : `None` (= nom du dossier courant)
 - `momemdir` (local) : chemin du dossier d'installation dans le projet. Prioritaire sur tout.
 
@@ -111,11 +111,12 @@ momem = "momem.cli:main"
 
 ### `momem update [--force]`
 1. Lister tous les fichiers `.py` dans le dossier `momem/` local
-2. Pour chaque fichier, trouver le correspondant dans la base de code
-3. Comparer les contenus. Si différent :
-   - Sans `--force` : signaler le conflit (fichier modifié localement vs base de code modifiée)
-   - Avec `--force` : écraser
-4. Re-calculer les dépendances : installer les nouvelles, signaler les obsolètes
+2. Pour chaque fichier, comparer avec le hash SHA-256 stocké dans `.momem.yaml` au moment de l'install :
+   - Local inchangé, codebase changée → mise à jour automatique
+   - Local modifié, codebase inchangée → skip (modification locale préservée)
+   - Les deux changés → conflit sans `--force`, écrasement avec `--force`
+   - Pas de hash stocké (install antérieur) → mise à jour automatique
+3. Re-calculer les dépendances : installer les nouvelles, signaler les obsolètes
 
 ### `momem show` / `momem show --local`
 - Afficher l'arborescence des fichiers installés dans le projet courant

@@ -12,7 +12,7 @@ Key commands the tool provides: `memorize`, `forget`, `show`, `install`, `uninst
 
 - Python 3.13+
 - UV for package/dependency management
-- No external dependencies yet
+- click (CLI framework), pyyaml (config files)
 
 ## Development Commands
 
@@ -29,13 +29,13 @@ uv run pytest
 
 ## Architecture
 
-The project is in early initialization stage. The main package is in `momem/`.
+The main package is in `momemcli/`.
 
 ### Core Concepts
 
-- **Code repository (base de code)**: stored in `~/.momem/momem/` by default, configurable via `momem config --global --set codebase <path>`
+- **Code repository (base de code)**: stored in `~/.momem/momem/` by default, configurable via `momem config --global --set codebase <path>` (path is used directly)
 - **Global config**: `~/.momem/.momem.yaml`
-- **Local project config**: `.momem.yaml` in project root, configurable via `momem config --local --set momemdir <path>`
+- **Local project config**: `.momem.yaml` in project root, configurable via `momem config --local --set momemdir <path>`. Also stores install hashes for 3-way update comparison.
 - **Installation target**: by default `PROJECT_DIR/PROJECT_DIR/momem/` — follows Python convention where directory name matches the main package name
 
 ### Path Management
