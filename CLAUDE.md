@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **momem** is a CLI tool for managing reusable Python code snippets across independent projects. It maintains a local code repository (`~/.momem/`) and allows installing/updating snippets into projects automatically.
 
-Key commands the tool provides: `memorize`, `forget`, `show`, `install`, `uninstall`, `update`, `config`.
+Key commands: `memorize`, `forget`, `show`, `install`, `uninstall`, `update`, `diff`, `config`.
 
 ## Tech Stack
 
@@ -20,11 +20,14 @@ Key commands the tool provides: `memorize`, `forget`, `show`, `install`, `uninst
 # Install dependencies
 uv sync
 
-# Run the tool (once entry points are defined)
+# Run the tool
 uv run momem
 
-# Run tests (once tests exist)
+# Run tests
 uv run pytest
+
+# Run tests with coverage
+uv run pytest --cov=momemcli --cov-report=term-missing
 ```
 
 ## Architecture
@@ -40,8 +43,16 @@ The main package is in `momemcli/`.
 
 ### Path Management
 
-When memorizing, file paths are reproduced in the code repository. A custom path can be specified as a second argument to `memorize`. That custom path is then the reference for `install`/`uninstall`.
+When memorizing without a `dest` argument, the source path is resolved to an absolute path and then made relative to the current working directory. If the source is outside the CWD, a `dest` argument is required. The `dest` argument must be purely relative (no `..`, no absolute paths). `Path` normalizes `.` automatically.
+
+### Dependency Resolution
+
+Imports between snippets are detected via AST parsing (`deps.py`). Absolute `momem.*` imports are rewritten to relative imports at `memorize` time. Dependencies are resolved recursively at `install` time, with cycle detection. Both module files (`name.py`) and packages (`name/__init__.py`) are supported via `resolve_dep_path()`.
+
+### `__init__.py` Management
+
+`memorize` creates `__init__.py` files in codebase subdirectories. `install` creates them in the project install directory. `forget` and `uninstall` clean up directories that only contain `__init__.py`. `show_memory` and `show_local` exclude `__init__.py` from listings.
 
 ## Language
 
-The README is in French, but all code, docstrings, and comments must be in English.
+The README and docs are in French, but all code, docstrings, and comments must be in English.

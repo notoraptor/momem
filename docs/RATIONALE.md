@@ -1,57 +1,95 @@
-# Avis sur l'utilité du projet
+# Pourquoi momem ?
 
-## Ce que momem fait concrètement
+## Le problème
 
-Si on enlève le vocabulaire, momem est un **gestionnaire de copie de fichiers** : il copie des scripts Python d'un dossier central vers des projets, et les re-copie quand ils changent. C'est utile, mais il faut voir si des solutions existantes ne font pas déjà le travail.
+On a souvent des petits scripts, fonctions ou classes Python qu'on réutilise à travers plusieurs projets indépendants : un décorateur de retry, un parser CSV, un setup de logging... Ces bouts de code ne forment pas un ensemble cohérent justifiant un package, mais on les copie régulièrement d'un projet à l'autre.
 
-## Alternatives sérieuses
+## Les solutions existantes
 
-### 1. `pip install -e /chemin/local/utils`
-Probablement le **concurrent le plus direct**. On crée un package local `utils` avec un `pyproject.toml` minimal, et on l'installe en mode éditable dans chaque projet :
+### 1. Package local avec `pip install -e`
+
+On crée un package local `utils/` avec un `pyproject.toml` minimal et on l'installe en mode éditable :
 
 ```bash
 pip install -e /chemin/vers/mon-utils
 ```
 
-**Avantages** :
-- Les changements sont reflétés immédiatement (pas besoin de `update`)
-- Pas de duplication de fichiers
-- Imports Python standards, outillage standard
-- Pas d'outil supplémentaire à installer
+| | |
+|---|---|
+| **Avantages** | Changements reflétés immédiatement, pas de duplication, imports standards, aucun outil supplémentaire |
+| **Inconvénients** | Dépend d'un chemin local — le projet n'est pas auto-suffisant. Si on le distribue (GitHub, collègue, déploiement), il faut embarquer le code manuellement. Suppose que les snippets forment un package cohérent. |
 
-**Inconvénient** (celui cité dans le DESIGN) : si un projet doit devenir public, il faut alors embarquer le code. Mais c'est aussi le cas avec momem — sauf que momem a déjà copié le code dans le projet.
+### 2. Package git avec `pip install git+url`
 
-### 2. `pip install git+https://github.com/user/utils.git`
-Même idée, mais depuis un repo git. Pas besoin de PyPI, pas besoin de publier un package. Un simple `pip install --upgrade` met à jour. Compatible avec `requirements.txt` et `pyproject.toml`.
+Même idée, mais hébergé sur un repo git :
+
+```bash
+pip install git+https://github.com/user/utils.git
+```
+
+| | |
+|---|---|
+| **Avantages** | Pas besoin de PyPI, compatible `requirements.txt` et `pyproject.toml`, `pip install --upgrade` pour mettre à jour |
+| **Inconvénients** | Dépend de l'accessibilité du repo. Suppose un package structuré. Pas de gestion granulaire (on installe tout ou rien). |
 
 ### 3. Git submodules / subtree
-- **Submodules** : pénibles à gérer, mais fonctionnels.
-- **Subtree** : copie le code dans le projet (comme momem), avec l'historique git en bonus. `git subtree pull` fait l'équivalent de `momem update`.
+
+| | |
+|---|---|
+| **Submodules** | Fonctionnels mais pénibles à gérer. Le projet dépend du repo source. |
+| **Subtree** | Copie le code dans le projet avec l'historique git. `git subtree pull` met à jour. Le projet est auto-suffisant. |
+
+| | |
+|---|---|
+| **Avantages subtree** | Auto-suffisant, historique conservé, outillage git standard |
+| **Inconvénients subtree** | Commandes git complexes, pas de gestion des dépendances entre fichiers, pas de détection de conflits granulaire. Suppose un repo source structuré. |
 
 ### 4. Vendoring
-Pratique courante (pip lui-même vendor ses dépendances). Il existe des outils comme `vendoring` qui automatisent ça. C'est exactement le pattern de momem, mais avec un outillage existant.
 
-## Où momem apporte une vraie valeur
+Pratique courante (pip lui-même vendor ses dépendances). Des outils comme `vendoring` automatisent la copie.
 
-Malgré ces alternatives, momem a **un avantage spécifique** : il cible le cas d'usage de **bouts de code éparpillés qui ne forment pas un package cohérent**. Les alternatives ci-dessus supposent qu'on a un repo ou package "utils" structuré. Si on a juste un `retry_decorator.py` ici, un `csv_parser.py` là, et un `logging_setup.py` ailleurs, aucun des outils ci-dessus ne gère ça naturellement.
+| | |
+|---|---|
+| **Avantages** | Pattern éprouvé, projet auto-suffisant |
+| **Inconvénients** | Outillage orienté packages entiers, pas fichiers individuels. Pas de gestion des dépendances entre snippets. |
 
-Mais cet avantage a un revers : **est-ce que ça ne serait pas mieux de simplement structurer ces snippets dans un petit package local ?** Un `pyproject.toml` + un dossier avec les scripts, et `pip install -e .` fait le reste. L'effort initial est minime et on bénéficie de tout l'écosystème Python.
+### 5. Copier-coller
 
-## Préoccupations sur le design
+| | |
+|---|---|
+| **Avantages** | Zéro outillage, immédiat |
+| **Inconvénients** | Aucun suivi des mises à jour. Les copies divergent silencieusement. Fastidieux dès qu'on a plus d'une poignée de fichiers. |
 
-1. **Duplication de code** — ATTÉNUÉ : la duplication est en fait un avantage : chaque projet est auto-suffisant et peut être distribué (GitHub, collègue, déploiement, travail hors ligne) sans dépendance externe. Parmi les alternatives, seuls git subtree et le vendoring offrent cette garantie. `pip install -e` dépend d'un chemin local, `pip install git+url` dépend de l'accessibilité du repo, git submodules nécessitent le repo source. Le risque de divergence silencieuse des copies locales est atténué par `momem update` et la détection de conflits (`--force` requis pour écraser).
+## L'approche de momem
 
-2. **Le namespace `momem`** — RÉSOLU : le package interne de l'outil CLI a été renommé en `momemcli`. La commande et le nom PyPI restent `momem`, mais il n'y a plus de conflit avec le dossier `momem/` des snippets dans les projets. De plus, les imports entre snippets utilisent des imports relatifs (réécrits automatiquement au `memorize`), ce qui les rend indépendants du namespace.
+momem cible un cas d'usage spécifique : des **bouts de code éparpillés qui ne forment pas un package cohérent**. Un `retry_decorator.py` ici, un `csv_parser.py` là, un `logging_setup.py` ailleurs.
 
-3. **Pas de versioning** — ATTÉNUÉ : `momem update` utilise une comparaison 3-way (hash stocké au moment de l'install) pour distinguer les mises à jour normales des vrais conflits. Les modifications locales sont préservées si la codebase n'a pas changé, et un conflit est signalé si les deux ont divergé.
+Plutôt qu'un package à structurer et maintenir, momem fonctionne comme un **gestionnaire de fichiers individuels** avec :
 
-4. **Gestion des `__init__.py`** : momem doit créer/maintenir les `__init__.py` dans l'arborescence installée pour que les imports fonctionnent. C'est de la plomberie que pip gère nativement.
+- **Base de code locale** (`~/.momem/momem/`) : un dossier central où on accumule ses snippets au fil du temps, sans contrainte de structure
+- **Installation par copie** : les snippets sont copiés dans chaque projet, qui reste auto-suffisant et distribuable
+- **Dépendances automatiques** : les imports entre snippets sont détectés par parsing AST et résolus récursivement
+- **Mise à jour intelligente** : comparaison 3-way (hash à l'install) qui préserve les modifications locales et détecte les vrais conflits
+- **Imports relatifs** : réécrits automatiquement au `memorize`, fonctionnent quel que soit le chemin d'installation
 
-## Verdict
+### Comparaison résumée
 
-Le problème est réel — on a tous des bouts de code qu'on réutilise. Mais la solution la plus simple est souvent la meilleure :
+| Critère | pip -e | pip git+url | subtree | vendoring | copier-coller | **momem** |
+|---|---|---|---|---|---|---|
+| Projet auto-suffisant | Non | Non | Oui | Oui | Oui | **Oui** |
+| Granularité fichier | Non | Non | Non | Non | Oui | **Oui** |
+| Détection de conflits | — | — | Git | — | Non | **3-way** |
+| Dépendances entre fichiers | pip | pip | Non | Non | Non | **AST** |
+| Mise à jour automatique | Immédiate | pip upgrade | git pull | Outil | Manuelle | **momem update** |
+| Outillage requis | pip | pip + git | git | Outil | Aucun | **momem** |
+| Snippets éparpillés | Non | Non | Non | Non | Oui | **Oui** |
 
-- **Si les snippets sont liés** : les mettre dans un petit package local, `pip install -e .`, terminé.
-- **Si c'est du one-shot** : un simple copier-coller suffit, pas besoin d'outillage.
+## Compromis assumés
 
-Momem se situe entre les deux, dans une niche où on a assez de snippets pour vouloir automatiser, mais pas assez pour justifier un package. **Cette niche existe**, mais elle est étroite. Le risque est de construire un outil plus complexe que le problème qu'il résout.
+1. **Duplication de code** : c'est le principe même de momem, et c'est un avantage — chaque projet est auto-suffisant. Le risque de divergence est atténué par `momem update` et la détection de conflits.
+
+2. **Pas de versioning** : momem ne gère pas de versions, contrairement à pip. La comparaison 3-way (hash stocké, version locale, version codebase) compense partiellement en détectant les modifications locales et les conflits.
+
+3. **Plomberie `__init__.py`** : momem crée et maintient automatiquement les `__init__.py` dans la codebase et les projets. C'est de la plomberie que pip gère nativement, mais c'est transparent pour l'utilisateur.
+
+4. **Niche étroite** : momem se situe entre le copier-coller et le package structuré. Si les snippets sont suffisamment liés pour former un package, `pip install -e` est plus simple. Si c'est du one-shot, un copier-coller suffit. Momem vaut le coup quand on a assez de snippets éparpillés pour vouloir automatiser, mais pas assez de cohérence pour justifier un package.
