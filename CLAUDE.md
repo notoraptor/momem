@@ -26,13 +26,21 @@ uv run momem
 # Run tests
 uv run pytest
 
+# Run a single test file or test
+uv run pytest tests/test_deps.py
+uv run pytest tests/test_project.py::TestUpdate::test_update_codebase_changed -v
+
 # Run tests with coverage
 uv run pytest --cov=momemcli --cov-report=term-missing
+
+# Lint and format
+uv run ruff check momemcli/ tests/
+uv run ruff format momemcli/ tests/
 ```
 
 ## Architecture
 
-The main package is in `momemcli/`.
+The main package is in `momemcli/`. Layered architecture: `cli.py` (Click commands) → core modules (`codebase.py`, `project.py`, `config.py`, `deps.py`) → file system. The CLI catches exceptions from core modules and wraps them in `ClickException`.
 
 ### Core Concepts
 
@@ -47,11 +55,19 @@ When memorizing without a `dest` argument, the source path is resolved to an abs
 
 ### Dependency Resolution
 
-Imports between snippets are detected via AST parsing (`deps.py`). Absolute `momem.*` imports are rewritten to relative imports at `memorize` time. Dependencies are resolved recursively at `install` time, with cycle detection. Both module files (`name.py`) and packages (`name/__init__.py`) are supported via `resolve_dep_path()`.
+Imports between snippets are detected via AST parsing (`deps.py`). Absolute `momem.*` imports are rewritten to relative imports at `memorize` time (regex-based, dot count determined by file depth). Dependencies are resolved recursively at `install` time, with cycle detection via visited set. Both module files (`name.py`) and packages (`name/__init__.py`) are supported via `resolve_dep_path()`.
+
+### 3-Way Update Logic
+
+`project.update()` compares three SHA-256 hashes per installed file: the original hash (stored at install time in `.momem.yaml`), the current local version, and the current codebase version. Only codebase-changed files are auto-updated; local-only changes are preserved; both-changed files are flagged as conflicts (unless `--force`).
 
 ### `__init__.py` Management
 
 `memorize` creates `__init__.py` files in codebase subdirectories. `install` creates them in the project install directory. `forget` and `uninstall` clean up directories that only contain `__init__.py`. `show_memory` and `show_local` exclude `__init__.py` from listings.
+
+## Testing
+
+Tests use `tmp_home` and `tmp_project` fixtures (`conftest.py`) that monkeypatch `config.TOOL_DIR` and related constants, isolating all tests from the real `~/.momem/`. CLI tests use Click's `CliRunner().invoke()`. The `setup_env` fixture combines both home and project isolation.
 
 ## Language
 
