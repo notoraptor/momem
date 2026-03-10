@@ -4,11 +4,13 @@ import shutil
 from pathlib import Path
 
 from momem.config import ensure_tool_dir, get_codebase_dir
-from momem.deps import validate_dependencies
+from momem.deps import find_dependents, rewrite_momem_imports, validate_dependencies
 
 
 def memorize(source: str, dest: str | None = None, *, force: bool = False) -> Path:
     """Add a Python file to the momem codebase.
+
+    Rewrites absolute momem.* imports to relative imports during the copy.
 
     Args:
         source: Path to the source file.
@@ -46,10 +48,16 @@ def memorize(source: str, dest: str | None = None, *, force: bool = False) -> Pa
         )
 
     target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(source_path, target)
+
+    # Read source, rewrite momem imports to relative, then write
+    content = source_path.read_text(encoding="utf-8")
+    content = rewrite_momem_imports(content, rel_dest)
+    target.write_text(content, encoding="utf-8")
+    # Preserve metadata
+    shutil.copystat(source_path, target)
 
     # Warn about missing dependencies
-    missing = validate_dependencies(target, codebase_dir)
+    missing = validate_dependencies(target, codebase_dir, rel_dest)
     if missing:
         import click
 
@@ -59,17 +67,32 @@ def memorize(source: str, dest: str | None = None, *, force: bool = False) -> Pa
     return target
 
 
-def forget(path: str) -> None:
+def forget(path: str, *, force: bool = False) -> None:
     """Remove a file from the momem codebase.
 
     Args:
         path: Relative path within the codebase.
+        force: Remove even if other snippets depend on this file.
     """
     codebase_dir = get_codebase_dir()
     target = codebase_dir / path
 
     if not target.exists():
         raise FileNotFoundError(f"File not found in codebase: {path}")
+
+    # Check if other snippets depend on this file
+    dependents = find_dependents(path, codebase_dir)
+    if dependents and not force:
+        dep_list = ", ".join(dependents)
+        raise ValueError(
+            f"Cannot forget {path}: used by {dep_list}. Use --force to remove anyway."
+        )
+
+    if dependents:
+        import click
+
+        for d in dependents:
+            click.echo(f"Warning: {d} depends on {path}", err=True)
 
     target.unlink()
 

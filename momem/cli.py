@@ -26,12 +26,15 @@ def memorize(source: str, dest: str | None, force: bool) -> None:
 
 @main.command()
 @click.argument("path")
-def forget(path: str) -> None:
+@click.option(
+    "--force", is_flag=True, help="Remove even if other snippets depend on it."
+)
+def forget(path: str, force: bool) -> None:
     """Remove a file from the momem codebase."""
     try:
-        codebase.forget(path)
+        codebase.forget(path, force=force)
         click.echo(f"Forgotten: {path}")
-    except FileNotFoundError as e:
+    except (FileNotFoundError, ValueError) as e:
         raise click.ClickException(str(e))
 
 

@@ -54,6 +54,30 @@ class TestMemorize:
         with pytest.raises(ValueError, match="not a file"):
             codebase.memorize(str(d))
 
+    def test_memorize_rewrites_imports(self, setup_env, tmp_path):
+        script = tmp_path / "uses_momem.py"
+        script.write_text("from momem.helper import x\nimport os\n", encoding="utf-8")
+        target = codebase.memorize(str(script), "uses_momem.py")
+        content = target.read_text(encoding="utf-8")
+        assert "from .helper import x" in content
+        assert "from momem." not in content
+        assert "import os" in content
+
+    def test_memorize_rewrites_imports_nested(self, setup_env, tmp_path):
+        script = tmp_path / "deep.py"
+        script.write_text("from momem.helper import x\n", encoding="utf-8")
+        target = codebase.memorize(str(script), "sub/deep.py")
+        content = target.read_text(encoding="utf-8")
+        assert "from ..helper import x" in content
+
+
+class TestMemorizeWarnings:
+    def test_warns_missing_deps(self, setup_env, tmp_path):
+        script = tmp_path / "needs_dep.py"
+        script.write_text("from momem.nonexistent import x\n", encoding="utf-8")
+        target = codebase.memorize(str(script), "needs_dep.py")
+        assert target.exists()
+
 
 class TestForget:
     def test_forget(self, setup_env, sample_script):
@@ -77,13 +101,25 @@ class TestForget:
         with pytest.raises(FileNotFoundError):
             codebase.forget("nope.py")
 
+    def test_forget_blocked_by_dependents(self, setup_env, tmp_path):
+        helper = tmp_path / "helper.py"
+        helper.write_text("x = 1\n", encoding="utf-8")
+        codebase.memorize(str(helper), "helper.py")
+        main = tmp_path / "main.py"
+        main.write_text("from momem.helper import x\n", encoding="utf-8")
+        codebase.memorize(str(main), "main.py")
+        with pytest.raises(ValueError, match="used by"):
+            codebase.forget("helper.py")
 
-class TestMemorizeWarnings:
-    def test_warns_missing_deps(self, setup_env, tmp_path):
-        script = tmp_path / "needs_dep.py"
-        script.write_text("from momem.nonexistent import x\n", encoding="utf-8")
-        target = codebase.memorize(str(script), "needs_dep.py")
-        assert target.exists()
+    def test_forget_force_with_dependents(self, setup_env, tmp_path):
+        helper = tmp_path / "helper.py"
+        helper.write_text("x = 1\n", encoding="utf-8")
+        codebase.memorize(str(helper), "helper.py")
+        main = tmp_path / "main.py"
+        main.write_text("from momem.helper import x\n", encoding="utf-8")
+        codebase.memorize(str(main), "main.py")
+        codebase.forget("helper.py", force=True)
+        assert not (get_codebase_dir() / "helper.py").exists()
 
 
 class TestShowMemory:

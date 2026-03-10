@@ -65,6 +65,30 @@ class TestCLIForget:
         result = runner.invoke(main, ["forget", "nope.py"])
         assert result.exit_code != 0
 
+    def test_forget_blocked_by_dependents(self, cli_env, tmp_path):
+        runner, _ = cli_env
+        helper = tmp_path / "helper.py"
+        helper.write_text("x = 1\n", encoding="utf-8")
+        runner.invoke(main, ["memorize", str(helper), "helper.py"])
+        main_script = tmp_path / "main.py"
+        main_script.write_text("from momem.helper import x\n", encoding="utf-8")
+        runner.invoke(main, ["memorize", str(main_script), "main.py"])
+        result = runner.invoke(main, ["forget", "helper.py"])
+        assert result.exit_code != 0
+        assert "used by" in result.output
+
+    def test_forget_force_with_dependents(self, cli_env, tmp_path):
+        runner, _ = cli_env
+        helper = tmp_path / "helper.py"
+        helper.write_text("x = 1\n", encoding="utf-8")
+        runner.invoke(main, ["memorize", str(helper), "helper.py"])
+        main_script = tmp_path / "main.py"
+        main_script.write_text("from momem.helper import x\n", encoding="utf-8")
+        runner.invoke(main, ["memorize", str(main_script), "main.py"])
+        result = runner.invoke(main, ["forget", "helper.py", "--force"])
+        assert result.exit_code == 0
+        assert "Forgotten" in result.output
+
 
 class TestCLIInstallUninstall:
     def test_install_and_uninstall(self, cli_env, sample_script):
