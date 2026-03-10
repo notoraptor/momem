@@ -1,7 +1,20 @@
 [project]
 name = "momem"
 version = "0.1.0"
-description = "Add your description here"
+description = "CLI tool to manage reusable Python code snippets across projects"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "click>=8.0",
+    "pyyaml>=6.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+momem = "momem.cli:main"
