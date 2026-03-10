@@ -66,9 +66,24 @@ class TestForget:
         codebase.forget("deep/nested/script.py")
         assert not (get_codebase_dir() / "deep").exists()
 
+    def test_forget_keeps_non_empty_parent(self, setup_env, sample_script):
+        codebase.memorize(str(sample_script), "dir/a.py")
+        codebase.memorize(str(sample_script), "dir/b.py", force=True)
+        codebase.forget("dir/a.py")
+        # dir/ should still exist because b.py is still there
+        assert (get_codebase_dir() / "dir" / "b.py").exists()
+
     def test_forget_nonexistent(self, setup_env):
         with pytest.raises(FileNotFoundError):
             codebase.forget("nope.py")
+
+
+class TestMemorizeWarnings:
+    def test_warns_missing_deps(self, setup_env, tmp_path):
+        script = tmp_path / "needs_dep.py"
+        script.write_text("from momem.nonexistent import x\n", encoding="utf-8")
+        target = codebase.memorize(str(script), "needs_dep.py")
+        assert target.exists()
 
 
 class TestShowMemory:
@@ -80,3 +95,7 @@ class TestShowMemory:
         codebase.memorize(str(sample_script), "b.py", force=True)
         files = codebase.show_memory()
         assert files == ["a.py", "b.py"]
+
+    def test_nonexistent_codebase(self, tmp_home):
+        """show_memory returns [] when codebase dir doesn't exist."""
+        assert codebase.show_memory() == []

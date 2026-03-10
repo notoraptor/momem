@@ -78,6 +78,31 @@ class TestUninstall:
         with pytest.raises(FileNotFoundError):
             project.uninstall("anything.py")
 
+    def test_uninstall_no_path_no_all(self, setup_env, sample_script):
+        codebase.memorize(str(sample_script), "x.py")
+        project.install("x.py")
+        with pytest.raises(ValueError, match="Specify a path"):
+            project.uninstall()
+
+    def test_uninstall_cleans_nested_dirs(self, setup_env, sample_script):
+        codebase.memorize(str(sample_script), "sub/deep/nested.py")
+        project.install("sub/deep/nested.py")
+        project.uninstall("sub/deep/nested.py")
+        install_dir = resolve_install_dir()
+        # Nested dirs should be cleaned up
+        assert not (install_dir / "sub" / "deep").exists()
+        assert not (install_dir / "sub").exists()
+
+    def test_uninstall_keeps_non_empty_parent(self, setup_env, sample_script):
+        codebase.memorize(str(sample_script), "pkg/a.py")
+        codebase.memorize(str(sample_script), "pkg/b.py", force=True)
+        project.install("pkg/a.py")
+        project.install("pkg/b.py")
+        project.uninstall("pkg/a.py")
+        install_dir = resolve_install_dir()
+        # pkg/ should still exist because b.py is there
+        assert (install_dir / "pkg" / "b.py").exists()
+
 
 class TestUpdate:
     def test_update_no_changes(self, setup_env, sample_script):

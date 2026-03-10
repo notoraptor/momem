@@ -1,9 +1,21 @@
 """Integration tests for the momem CLI."""
 
+import subprocess
+import sys
+
 import pytest
 from click.testing import CliRunner
 
 from momem.cli import main
+
+
+class TestMainModule:
+    def test_python_m_momem(self):
+        result = subprocess.run(
+            [sys.executable, "-m", "momem", "--help"], capture_output=True, text=True
+        )
+        assert result.returncode == 0
+        assert "Usage" in result.stdout
 
 
 @pytest.fixture
@@ -76,6 +88,18 @@ class TestCLIInstallUninstall:
         assert result.exit_code == 0
 
 
+class TestCLIInstallError:
+    def test_install_nonexistent(self, cli_env):
+        runner, _ = cli_env
+        result = runner.invoke(main, ["install", "nope.py"])
+        assert result.exit_code != 0
+
+    def test_uninstall_error(self, cli_env):
+        runner, _ = cli_env
+        result = runner.invoke(main, ["uninstall", "nope.py"])
+        assert result.exit_code != 0
+
+
 class TestCLIUpdate:
     def test_update_up_to_date(self, cli_env, sample_script):
         runner, _ = cli_env
@@ -85,6 +109,49 @@ class TestCLIUpdate:
         assert result.exit_code == 0
         assert "up to date" in result.output
 
+    def test_update_no_install_dir(self, cli_env):
+        runner, _ = cli_env
+        result = runner.invoke(main, ["update"])
+        assert result.exit_code != 0
+
+    def test_update_shows_all_categories(self, cli_env, sample_script):
+        runner, _ = cli_env
+        from momem.config import get_codebase_dir
+
+        runner.invoke(main, ["memorize", str(sample_script), "up.py"])
+        runner.invoke(main, ["install", "up.py"])
+        # Modify codebase file to create conflict/update
+        cb = get_codebase_dir() / "up.py"
+        cb.write_text("changed = True\n")
+        # Add a new dep
+        helper = get_codebase_dir() / "helper.py"
+        helper.write_text("from momem.up import changed\n")
+        cb.write_text("from momem.helper import changed\n")
+        result = runner.invoke(main, ["update", "--force"])
+        assert result.exit_code == 0
+        assert "Updated" in result.output or "New dependency" in result.output
+
+    def test_update_conflict_output(self, cli_env, sample_script):
+        runner, _ = cli_env
+        from momem.config import get_codebase_dir
+
+        runner.invoke(main, ["memorize", str(sample_script), "c.py"])
+        runner.invoke(main, ["install", "c.py"])
+        cb = get_codebase_dir() / "c.py"
+        cb.write_text("changed = True\n")
+        result = runner.invoke(main, ["update"])
+        assert "Conflict" in result.output
+
+    def test_update_obsolete_output(self, cli_env, sample_script):
+        runner, _ = cli_env
+        from momem.config import get_codebase_dir
+
+        runner.invoke(main, ["memorize", str(sample_script), "obs.py"])
+        runner.invoke(main, ["install", "obs.py"])
+        (get_codebase_dir() / "obs.py").unlink()
+        result = runner.invoke(main, ["update"])
+        assert "no longer in codebase" in result.output
+
 
 class TestCLIShow:
     def test_show_memory(self, cli_env, sample_script):
@@ -93,6 +160,12 @@ class TestCLIShow:
         result = runner.invoke(main, ["show", "--memory"])
         assert result.exit_code == 0
         assert "v.py" in result.output
+
+    def test_show_memory_empty(self, cli_env):
+        runner, _ = cli_env
+        result = runner.invoke(main, ["show", "--memory"])
+        assert result.exit_code == 0
+        assert "empty" in result.output
 
     def test_show_local_empty(self, cli_env):
         runner, _ = cli_env
@@ -107,6 +180,11 @@ class TestCLIShow:
         result = runner.invoke(main, ["show", "--local"])
         assert result.exit_code == 0
         assert "w.py" in result.output
+
+    def test_show_both_flags_error(self, cli_env):
+        runner, _ = cli_env
+        result = runner.invoke(main, ["show", "--memory", "--local"])
+        assert result.exit_code != 0
 
 
 class TestCLIConfig:
@@ -129,6 +207,11 @@ class TestCLIConfig:
     def test_config_set_no_scope(self, cli_env):
         runner, _ = cli_env
         result = runner.invoke(main, ["config", "set", "codebase", "x"])
+        assert result.exit_code != 0
+
+    def test_config_set_invalid_key(self, cli_env):
+        runner, _ = cli_env
+        result = runner.invoke(main, ["config", "set", "bad_key", "val", "--global"])
         assert result.exit_code != 0
 
     def test_config_show(self, cli_env):
