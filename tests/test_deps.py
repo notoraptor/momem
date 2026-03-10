@@ -28,9 +28,7 @@ class TestFindMomemImports:
 
     def test_multiple_imports(self, tmp_path):
         script = tmp_path / "a.py"
-        script.write_text(
-            "from momem.foo import bar\nimport momem.baz\nimport os\n"
-        )
+        script.write_text("from momem.foo import bar\nimport momem.baz\nimport os\n")
         assert find_momem_imports(script) == {"foo.py", "baz.py"}
 
 

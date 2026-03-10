@@ -3,7 +3,6 @@
 import pytest
 from click.testing import CliRunner
 
-from momem import config
 from momem.cli import main
 
 

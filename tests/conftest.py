@@ -1,8 +1,5 @@
 """Shared fixtures for momem tests."""
 
-import os
-from pathlib import Path
-
 import pytest
 
 from momem import config
@@ -51,7 +48,7 @@ def sample_script_with_dep(tmp_path):
 
     main = tmp_path / "main.py"
     main.write_text(
-        'from momem.helper import assist\n\ndef run():\n    return assist()\n',
+        "from momem.helper import assist\n\ndef run():\n    return assist()\n",
         encoding="utf-8",
     )
     return main, dep
