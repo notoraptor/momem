@@ -44,4 +44,4 @@ When memorizing, file paths are reproduced in the code repository. A custom path
 
 ## Language
 
-The project documentation (README) is written in French. Follow the same language conventions for user-facing strings.
+The README is in French, but all code, docstrings, and comments must be in English.
