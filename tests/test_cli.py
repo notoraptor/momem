@@ -179,6 +179,7 @@ class TestCLIUpdate:
         local.write_text("local edit = True\n")
         result = runner.invoke(main, ["update"])
         assert "Conflict" in result.output
+        assert result.exit_code == 1
 
     def test_update_obsolete_output(self, cli_env, sample_script):
         runner, _ = cli_env
@@ -245,7 +246,7 @@ class TestCLIShow:
 
     def test_show_local_empty(self, cli_env):
         runner, _ = cli_env
-        result = runner.invoke(main, ["show"])
+        result = runner.invoke(main, ["show", "--local"])
         assert result.exit_code == 0
         assert "No snippets" in result.output
 
@@ -257,10 +258,23 @@ class TestCLIShow:
         assert result.exit_code == 0
         assert "w.py" in result.output
 
-    def test_show_both_flags_error(self, cli_env):
+    def test_show_default_both(self, cli_env, sample_script):
         runner, _ = cli_env
+        runner.invoke(main, ["memorize", str(sample_script), "x.py"])
+        runner.invoke(main, ["install", "x.py"])
+        result = runner.invoke(main, ["show"])
+        assert result.exit_code == 0
+        assert "Codebase:" in result.output
+        assert "Installed snippets:" in result.output
+        assert "x.py" in result.output
+
+    def test_show_both_flags(self, cli_env, sample_script):
+        runner, _ = cli_env
+        runner.invoke(main, ["memorize", str(sample_script), "y.py"])
         result = runner.invoke(main, ["show", "--memory", "--local"])
-        assert result.exit_code != 0
+        assert result.exit_code == 0
+        assert "Codebase:" in result.output
+        assert "No snippets" in result.output
 
 
 class TestCLIConfig:

@@ -84,6 +84,11 @@ class TestRewriteMomemImports:
         result = rewrite_momem_imports(source, "main.py")
         assert result == "import os\nfrom .helper import x\nx = 1\n"
 
+    def test_multiline_from_import(self):
+        source = "from momem.utils import (\n    func_a,\n    func_b,\n)\n"
+        result = rewrite_momem_imports(source, "main.py")
+        assert result == "from .utils import (\n    func_a,\n    func_b,\n)\n"
+
 
 class TestFindMomemImports:
     def test_absolute_from_import(self, tmp_path):

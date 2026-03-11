@@ -85,6 +85,9 @@ def update(force: bool) -> None:
     if not any(result.values()):
         click.echo("Everything is up to date.")
 
+    if result["conflicts"]:
+        raise SystemExit(1)
+
 
 @main.command()
 @click.argument("path", required=False)
@@ -107,10 +110,10 @@ def diff(path: str | None) -> None:
 @click.option("--local", "local_", is_flag=True, help="Show files installed locally.")
 def show(memory: bool, local_: bool) -> None:
     """Show available snippets (--memory for codebase, --local for project)."""
-    if memory and local_:
-        raise click.ClickException("Use either --memory or --local, not both.")
+    show_memory = memory or not local_
+    show_local = local_ or not memory
 
-    if memory:
+    if show_memory:
         files = codebase.show_memory()
         if not files:
             click.echo("Codebase is empty.")
@@ -118,8 +121,10 @@ def show(memory: bool, local_: bool) -> None:
             click.echo("Codebase:")
             for f in files:
                 click.echo(f"  {f}")
-    else:
-        # Default to --local
+
+    if show_local:
+        if show_memory:
+            click.echo()
         files = project.show_local()
         if not files:
             click.echo("No snippets installed in this project.")

@@ -48,7 +48,7 @@ def memorize(source: str, dest: str | None = None, *, force: bool = False) -> Pa
         dest_path = Path(dest)
         if dest_path.is_absolute() or ".." in dest_path.parts:
             raise ValueError(
-                "Destination must be a purely relative path without '.' or '..'. "
+                "Destination must be a purely relative path without '..'. "
                 f"Got: {dest}"
             )
         rel_dest = dest
